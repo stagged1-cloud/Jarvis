@@ -15,15 +15,18 @@ This directory contains the AI models used by Jarvis.
   3. Download .ppn file
   4. Place in this directory
 
-### 2. Speech-to-Text (Faster-Whisper)
-- **Directory**: `stt/`
+### 2. Speech-to-Text (Whisper.net)
+- **Directory**: `whisper/`
 - **Purpose**: Convert speech to text locally
 - **Options**:
-  - **tiny.en** - Fastest, ~75MB, good for simple commands
-  - **base.en** - Balanced, ~145MB, better accuracy
-  - **small.en** - Best accuracy, ~466MB, slower
-- **Download**: Automatic on first run via Hugging Face
-- **Manual**: https://huggingface.co/guillaumekln/faster-whisper-base.en
+  - **ggml-tiny.bin** - Fastest, ~75MB, good for simple commands
+  - **ggml-base.bin** - Balanced, ~141MB, better accuracy (recommended)
+  - **ggml-small.bin** - Best accuracy, ~466MB, slower
+- **Download Script**: 
+  ```powershell
+  .\scripts\download-whisper-model.ps1 -ModelSize base
+  ```
+- **Manual**: https://huggingface.co/ggerganov/whisper.cpp/tree/main
 
 ### 3. Text-to-Speech (Optional - Piper)
 - **Directory**: `tts/`
@@ -54,14 +57,15 @@ Run the included setup script to download all required models:
 
 ## Current Status
 
-- [ ] Hotword model (hotword.ppn)
-- [ ] STT model (stt/)
-- [ ] TTS model (tts/) - Optional
+- [x] Hotword model (Hey-Jarvis_en_windows_v3_0_0.ppn) - Included
+- [ ] STT model (whisper/ggml-base.bin) - Download required (141MB)
+- [ ] TTS model (tts/) - Optional, Windows SAPI used by default
 - [ ] LLM setup - Optional, use cloud API or Ollama
 
 ## Storage Notes
 
-- **Do not commit model files to git** (they're in .gitignore)
-- Models are large (100MB - 5GB total depending on choices)
-- Minimum required: ~200MB (hotword + tiny whisper)
-- Recommended: ~500MB (hotword + base whisper)
+- **Model files are NOT committed to git** (too large, in .gitignore)
+- **Whisper models must be downloaded** using the script above
+- Models are large (141MB - 5GB total depending on choices)
+- Minimum required: ~141MB (whisper base)
+- The Hotword model (Hey-Jarvis_en_windows_v3_0_0.ppn) IS included in the repo
