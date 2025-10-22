@@ -1,0 +1,5 @@
+# This file keeps the models directory in git
+# Place your AI model files here:
+# - hotword.ppn (Picovoice Porcupine wake word model)
+# - stt/ (Whisper or Vosk speech-to-text models)
+# - llm/ (Local language models for Ollama)
