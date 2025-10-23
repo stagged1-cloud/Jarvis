@@ -1,4 +1,5 @@
 using System;
+using Jarvis.Core.Models;
 
 namespace Jarvis.Core.Interfaces;
 
@@ -36,7 +37,9 @@ public interface IOCRService
 
 public interface ILLMService
 {
-    Task<string> ProcessQueryAsync(string query, string? context = null);
+    event EventHandler<LLMResponse>? ResponseReceived;
+    Task<LLMResponse> ProcessCommand(string command, string? screenContext = null);
+    Task<string> GenerateResponse(string prompt);
 }
 
 public interface ISkill
@@ -58,4 +61,9 @@ public interface IGuardRailService
 {
     bool IsActionAllowed(string action, string target);
     void LogAction(string action, bool approved);
+}
+
+public interface IActionExecutionService
+{
+    Task<ExecutionResult> ExecuteAsync(LLMResponse command);
 }

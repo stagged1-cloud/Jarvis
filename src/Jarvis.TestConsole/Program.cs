@@ -1,3 +1,4 @@
+using Jarvis.AI.LLM;
 using Jarvis.Audio.Hotword;
 using Jarvis.Audio.STT;
 using Jarvis.Audio.TTS;
@@ -17,6 +18,13 @@ class Program
     static async Task Main(string[] args)
     {
         Console.WriteLine("=== Jarvis AI Assistant - Test Console ===\n");
+
+        // Quick test of LLM if user passes --test-llm argument
+        if (args.Contains("--test-llm"))
+        {
+            await TestLLM.Run();
+            return;
+        }
 
         // Load configuration - search upwards from binary location
         var currentDir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
@@ -87,6 +95,10 @@ class Program
         await ttsService.SpeakAsync("Hello! Jarvis system initialized.");
         Console.WriteLine("✓ TTS Service working\n");
 
+        // Initialize GuardRail Service early (needed for action execution)
+        var guardRailLogger = loggerFactory.CreateLogger<GuardRailService>();
+        var guardRailService = new GuardRailService(guardRailLogger, config?.Security);
+
         // Test Real Hotword Detection with Porcupine + STT
         Console.WriteLine("--- Testing Real Hotword Detection + Speech Recognition ---");
         if (!string.IsNullOrWhiteSpace(config?.Audio.PicovoiceAccessKey))
@@ -139,6 +151,15 @@ class Program
                     Console.WriteLine("STT will not be available. Run: .\\scripts\\download-whisper-model.ps1\n");
                 }
 
+                // Initialize LLM Service
+                var llmLogger = loggerFactory.CreateLogger<OllamaLLMService>();
+                var llmService = new OllamaLLMService(
+                    llmLogger,
+                    config?.AI.OllamaBaseUrl ?? "http://localhost:11434",
+                    config?.AI.OllamaModel ?? "llama3.2"
+                );
+                Console.WriteLine("✓ Ollama LLM initialized\n");
+
                 // Setup event handlers
                 bool isListeningForCommand = false;
                 
@@ -169,24 +190,56 @@ class Program
                 {
                     sttService.SpeechRecognized += async (sender, text) =>
                     {
-                        Console.WriteLine($"\n💬 YOU SAID: \"{text}\"\n");
-                        await ttsService.SpeakAsync($"You said: {text}");
+                        Console.WriteLine($"\n💬 YOU SAID: \"{text}\"");
+                        Console.WriteLine("🤖 Processing with AI...\n");
+                        
+                        // Send to LLM for processing
+                        var llmResponse = await llmService.ProcessCommand(text);
+                        
+                        Console.WriteLine($"🧠 AI Understanding:");
+                        Console.WriteLine($"   Action: {llmResponse.Action}");
+                        Console.WriteLine($"   Target: {llmResponse.Target ?? "N/A"}");
+                        Console.WriteLine($"   Confidence: {llmResponse.Confidence:P0}");
+                        Console.WriteLine($"   Explanation: {llmResponse.Message}\n");
+                        
+                        // Speak the explanation
+                        await ttsService.SpeakAsync(llmResponse.Message);
+                        
+                        // Execute the action
+                        if (llmResponse.Success && llmResponse.Action != "clarify")
+                        {
+                            Console.WriteLine($"⚙️  Executing: {llmResponse.Action} → {llmResponse.Target}...");
+                            
+                            var actionService = new ActionExecutionService(guardRailService, loggerFactory.CreateLogger<ActionExecutionService>());
+                            var result = await actionService.ExecuteAsync(llmResponse);
+                            
+                            if (result.Success)
+                            {
+                                Console.WriteLine($"✓ {result.Message}\n");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"✗ {result.Message}\n");
+                                await ttsService.SpeakAsync($"Sorry, {result.Message}");
+                            }
+                        }
                     };
                 }
 
                 Console.WriteLine("═══════════════════════════════════════════════════════════");
-                Console.WriteLine("  🤖 JARVIS VOICE ASSISTANT - FULL WORKFLOW TEST");
+                Console.WriteLine("  🤖 JARVIS VOICE ASSISTANT - AI-POWERED WORKFLOW TEST");
                 Console.WriteLine("═══════════════════════════════════════════════════════════");
                 Console.WriteLine($"\n📋 Configuration:");
                 Console.WriteLine($"   Hotword Model: {Path.GetFileName(hotwordModelPath)}");
                 if (sttService != null)
                     Console.WriteLine($"   STT Model: {Path.GetFileName(sttModelPath)}");
+                Console.WriteLine($"   LLM: Ollama ({config?.AI.OllamaModel ?? "llama3.2"})");
                 Console.WriteLine($"   Microphone: Device {selectedDevice}");
                 Console.WriteLine($"\n📖 Instructions:");
                 Console.WriteLine("   1. Say 'Hey Jarvis' to activate");
                 Console.WriteLine("   2. Wait for 'Yes?' response");
-                Console.WriteLine("   3. Say your command (e.g., 'open notepad', 'what time is it')");
-                Console.WriteLine("   4. Jarvis will transcribe and repeat what you said");
+                Console.WriteLine("   3. Say your command (e.g., 'open notepad', 'search for pizza')");
+                Console.WriteLine("   4. Jarvis will use AI to understand and explain the command");
                 Console.WriteLine($"\n⚙️  Audio Levels: Watch for 🔊 (speech) vs 🔇 (silence)");
                 Console.WriteLine("   Press Ctrl+C to stop\n");
                 Console.WriteLine("═══════════════════════════════════════════════════════════\n");
@@ -237,10 +290,8 @@ class Program
             Console.WriteLine("✓ Placeholder Hotword Service working\n");
         }
 
-        // Test GuardRail Service
+        // Test GuardRail Service (already initialized above)
         Console.WriteLine("--- Testing GuardRail Service ---");
-        var guardRailLogger = loggerFactory.CreateLogger<GuardRailService>();
-        var guardRailService = new GuardRailService(guardRailLogger, config?.Security);
 
         Console.WriteLine("Testing action approval:");
         Console.WriteLine($"  notepad.exe: {(guardRailService.IsActionAllowed("open", "notepad.exe") ? "✓ Allowed" : "✗ Blocked")}");

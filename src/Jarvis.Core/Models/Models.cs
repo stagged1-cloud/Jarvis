@@ -29,6 +29,8 @@ public class CaptureConfig
 
 public class AIConfig
 {
+    public string OllamaBaseUrl { get; set; } = "http://localhost:11434";
+    public string OllamaModel { get; set; } = "llama3.2";
     public string LocalModelPath { get; set; } = "models/llm";
     public string ApiEndpoint { get; set; } = "";
     public string ApiKey { get; set; } = "";
@@ -72,4 +74,22 @@ public class Rectangle
     public int Y { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
+}
+
+public class LLMResponse
+{
+    public bool Success { get; set; }
+    public string Action { get; set; } = "";
+    public string? Target { get; set; }
+    public Dictionary<string, object> Parameters { get; set; } = new();
+    public string Message { get; set; } = "";
+    public double Confidence { get; set; }
+    public string RawResponse { get; set; } = "";
+}
+
+public class ExecutionResult
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = "";
+    public object? Data { get; set; }
 }

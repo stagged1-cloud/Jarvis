@@ -90,12 +90,19 @@ public class JarvisServiceManager
             }
 
             // Get LLM response
-            var response = await llmService.ProcessQueryAsync(command, context?.OCRText);
+            var response = await llmService.ProcessCommand(command, context?.OCRText);
 
-            // Parse and execute actions
-            var actions = ParseActions(response);
-            foreach (var action in actions)
+            // Parse and execute actions based on LLM response
+            if (response.Success && response.Action != "clarify" && response.Action != "deny")
             {
+                var action = new ActionRequest
+                {
+                    Type = response.Action,
+                    Target = response.Target ?? "",
+                    Parameters = System.Text.Json.JsonSerializer.Serialize(response.Parameters),
+                    RequiresApproval = _config.Security.RequireApproval
+                };
+
                 if (guardRailService.IsActionAllowed(action.Type, action.Target))
                 {
                     if (action.RequiresApproval)
@@ -115,6 +122,11 @@ public class JarvisServiceManager
                     var ttsService = _serviceProvider.GetRequiredService<ITTSService>();
                     await ttsService.SpeakAsync("Sorry, that action is not allowed.");
                 }
+            }
+            else
+            {
+                var ttsService = _serviceProvider.GetRequiredService<ITTSService>();
+                await ttsService.SpeakAsync(response.Message);
             }
         }
         catch (Exception ex)

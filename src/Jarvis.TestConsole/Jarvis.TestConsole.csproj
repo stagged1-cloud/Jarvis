@@ -12,6 +12,7 @@
     <ProjectReference Include="..\Jarvis.Core\Jarvis.Core.csproj" />
     <ProjectReference Include="..\Jarvis.Audio\Jarvis.Audio.csproj" />
     <ProjectReference Include="..\Jarvis.Input\Jarvis.Input.csproj" />
+    <ProjectReference Include="..\Jarvis.AI\Jarvis.AI.csproj" />
   </ItemGroup>
 
   <ItemGroup>
