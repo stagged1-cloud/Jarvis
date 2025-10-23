@@ -32,31 +32,60 @@ public class OllamaLLMService : ILLMService
 
 Your role:
 1. Analyze user voice commands and screen context
-2. Determine what action the user wants to perform
-3. Respond with structured JSON containing the action to take
+2. Determine what action(s) the user wants to perform
+3. Respond with structured JSON containing single or multiple actions
 
 Available actions:
-- open_app: Launch an application (e.g., notepad, browser)
-- type_text: Type text into the active window
-- move_mouse: Move mouse to coordinates
-- click: Click at current or specified position
-- press_key: Press keyboard keys
-- search_web: Open browser and search
-- control_window: Minimize, maximize, close windows
+- open_app: Launch an application (target: app name like 'notepad', 'calc')
+- type_text: Type text into active window (target: the text to type)
+- wait: Pause execution (parameters: {""milliseconds"": 1000})
+- press_key: Press keyboard keys (target: key name like 'enter', 'tab')
+- search_web: Open browser and search (target: search query)
+- control_window: Minimize, maximize, close windows (target: window title)
+- move_mouse: Move mouse (parameters: {""x"": 100, ""y"": 200})
+- click: Click at current position
 
-Response format (JSON only, no markdown):
+**IMPORTANT**: For multi-step commands, return a ""steps"" array instead of single action.
+
+Single-step format:
 {
-  ""action"": ""action_name"",
-  ""target"": ""target_application_or_text"",
-  ""parameters"": { /* action-specific params */ },
+  ""action"": ""open_app"",
+  ""target"": ""notepad"",
   ""confidence"": 0.95,
-  ""explanation"": ""Brief explanation of what you understood""
+  ""explanation"": ""Opening Notepad""
 }
 
-If you're unsure, ask for clarification with action: ""clarify"".
-If the command is unsafe or unclear, use action: ""deny"" with explanation.
+Multi-step format:
+{
+  ""steps"": [
+    {
+      ""action"": ""open_app"",
+      ""target"": ""notepad"",
+      ""order"": 1,
+      ""delayMs"": 1000,
+      ""description"": ""Open Notepad""
+    },
+    {
+      ""action"": ""type_text"",
+      ""target"": ""Hello World"",
+      ""order"": 2,
+      ""delayMs"": 0,
+      ""description"": ""Type the text""
+    }
+  ],
+  ""confidence"": 0.95,
+  ""explanation"": ""Opening Notepad and typing Hello World""
+}
 
-Be concise and always respond with valid JSON.";
+Examples:
+- ""Open Notepad"" → single action
+- ""Open Notepad and type Hello"" → multi-step with steps array
+- ""Search for pizza"" → single action
+- ""Open Calculator and press 5"" → multi-step
+
+Always add delayMs between app launches (1000ms) to let apps open.
+If unsure, use action: ""clarify"". If unsafe, use action: ""deny"".
+Respond with ONLY valid JSON, no markdown code blocks.";
 
         _logger.LogInformation($"OllamaLLMService initialized with model: {_model} at {baseUrl}");
     }
@@ -148,18 +177,43 @@ Be concise and always respond with valid JSON.";
     {
         try
         {
-            // Try to extract JSON from the response (LLM might wrap it in markdown)
-            var jsonStart = responseText.IndexOf('{');
-            var jsonEnd = responseText.LastIndexOf('}');
+            // Clean up the response - remove markdown code blocks, trim whitespace
+            var cleaned = responseText.Trim();
+            if (cleaned.StartsWith("```json"))
+            {
+                cleaned = cleaned.Substring(7); // Remove ```json
+            }
+            if (cleaned.StartsWith("```"))
+            {
+                cleaned = cleaned.Substring(3); // Remove ```
+            }
+            if (cleaned.EndsWith("```"))
+            {
+                cleaned = cleaned.Substring(0, cleaned.Length - 3);
+            }
+            cleaned = cleaned.Trim();
+
+            // Try to extract JSON from the response - find FIRST { and LAST }
+            var jsonStart = cleaned.IndexOf('{');
+            var jsonEnd = cleaned.LastIndexOf('}');
             
             if (jsonStart >= 0 && jsonEnd > jsonStart)
             {
-                var json = responseText.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                var parsed = System.Text.Json.JsonSerializer.Deserialize<LLMResponseJson>(json);
+                // Take ONLY from first { to last }, discard any trailing garbage
+                var json = cleaned.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                
+                // Try to deserialize
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    AllowTrailingCommas = true
+                };
+                
+                var parsed = System.Text.Json.JsonSerializer.Deserialize<LLMResponseJson>(json, options);
 
                 if (parsed != null)
                 {
-                    return new LLMResponse
+                    var response = new LLMResponse
                     {
                         Success = true,
                         Action = parsed.action ?? "unknown",
@@ -169,6 +223,15 @@ Be concise and always respond with valid JSON.";
                         Confidence = parsed.confidence,
                         RawResponse = responseText
                     };
+
+                    // Handle multi-step responses
+                    if (parsed.steps != null && parsed.steps.Count > 0)
+                    {
+                        response.Steps = parsed.steps;
+                        response.Action = "multi_step"; // Mark as multi-step workflow
+                    }
+
+                    return response;
                 }
             }
 
@@ -210,5 +273,6 @@ Be concise and always respond with valid JSON.";
         public Dictionary<string, object>? parameters { get; set; }
         public double confidence { get; set; }
         public string? explanation { get; set; }
+        public List<ActionStep>? steps { get; set; }
     }
 }

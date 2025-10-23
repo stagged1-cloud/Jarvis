@@ -85,6 +85,27 @@ public class LLMResponse
     public string Message { get; set; } = "";
     public double Confidence { get; set; }
     public string RawResponse { get; set; } = "";
+    public List<ActionStep>? Steps { get; set; }
+    public bool IsMultiStep => Steps != null && Steps.Count > 0;
+}
+
+public class ActionStep
+{
+    public string Action { get; set; } = "";
+    public string? Target { get; set; }
+    public Dictionary<string, object> Parameters { get; set; } = new();
+    public int Order { get; set; }
+    public int DelayMs { get; set; }
+    public string Description { get; set; } = "";
+}
+
+public class StepResult
+{
+    public int StepNumber { get; set; }
+    public string Action { get; set; } = "";
+    public bool Success { get; set; }
+    public string Message { get; set; } = "";
+    public DateTime Timestamp { get; set; }
 }
 
 public class ExecutionResult
@@ -92,4 +113,5 @@ public class ExecutionResult
     public bool Success { get; set; }
     public string Message { get; set; } = "";
     public object? Data { get; set; }
+    public List<StepResult> StepResults { get; set; } = new();
 }
