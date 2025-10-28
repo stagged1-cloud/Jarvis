@@ -106,7 +106,7 @@ class Program
             // Find project root where config was found
             var projectRoot = Path.GetDirectoryName(Path.GetDirectoryName(configPath!))!;
             var hotwordModelPath = Path.Combine(projectRoot, config.Audio.HotwordModelPath ?? "models/Hey-Jarvis_en_windows_v3_0_0.ppn");
-            var sttModelPath = Path.Combine(projectRoot, "models/whisper/ggml-base.bin");
+            var sttModelPath = Path.Combine(projectRoot, config.Audio.STTModelPath ?? "models/whisper/ggml-medium.bin");
 
             if (File.Exists(hotwordModelPath))
             {
