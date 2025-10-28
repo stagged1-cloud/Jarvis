@@ -113,9 +113,26 @@ public class WhisperSTTService : ISTTService, IDisposable
 
     private void OnAudioDataAvailable(object? sender, WaveInEventArgs e)
     {
-        // Accumulate audio data
+        // Convert to short array for amplification
+        short[] audioFrame = new short[e.BytesRecorded / 2];
+        Buffer.BlockCopy(e.Buffer, 0, audioFrame, 0, e.BytesRecorded);
+
+        // Apply gain boost for quiet microphones (same as hotword service)
+        const float gainMultiplier = 80.0f;
+        for (int i = 0; i < audioFrame.Length; i++)
+        {
+            float amplified = audioFrame[i] * gainMultiplier;
+            if (amplified > short.MaxValue)
+                audioFrame[i] = short.MaxValue;
+            else if (amplified < short.MinValue)
+                audioFrame[i] = short.MinValue;
+            else
+                audioFrame[i] = (short)amplified;
+        }
+
+        // Convert back to bytes
         byte[] buffer = new byte[e.BytesRecorded];
-        Array.Copy(e.Buffer, buffer, e.BytesRecorded);
+        Buffer.BlockCopy(audioFrame, 0, buffer, 0, e.BytesRecorded);
         _audioBuffer.AddRange(buffer);
     }
 

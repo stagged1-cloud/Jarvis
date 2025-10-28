@@ -17,6 +17,7 @@ public class AudioConfig
     public string STTModelPath { get; set; } = "models/stt";
     public string TTSVoice { get; set; } = "Microsoft Zira Desktop";
     public float STTSensitivity { get; set; } = 0.5f;
+    public float MicrophoneGain { get; set; } = 10.0f; // Audio amplification for quiet microphones
 }
 
 public class CaptureConfig

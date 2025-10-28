@@ -161,12 +161,27 @@ public class PorcupineHotwordService : IHotwordService, IDisposable
             short[] audioFrame = new short[e.BytesRecorded / 2];
             Buffer.BlockCopy(e.Buffer, 0, audioFrame, 0, e.BytesRecorded);
 
+            // Apply gain boost for quiet microphones (Intel Smart Sound arrays)
+            const float gainMultiplier = 80.0f; // High boost for very quiet laptop mics
+            for (int i = 0; i < audioFrame.Length; i++)
+            {
+                float amplified = audioFrame[i] * gainMultiplier;
+                // Clamp to prevent overflow
+                if (amplified > short.MaxValue)
+                    audioFrame[i] = short.MaxValue;
+                else if (amplified < short.MinValue)
+                    audioFrame[i] = short.MinValue;
+                else
+                    audioFrame[i] = (short)amplified;
+            }
+
             // Calculate audio level for debugging
             double audioLevel = 0;
             int maxAmplitude = 0;
             for (int i = 0; i < audioFrame.Length; i++)
             {
-                int absValue = Math.Abs(audioFrame[i]);
+                // Handle short.MinValue overflow in Math.Abs
+                int absValue = audioFrame[i] == short.MinValue ? short.MaxValue : Math.Abs(audioFrame[i]);
                 audioLevel += absValue;
                 if (absValue > maxAmplitude)
                     maxAmplitude = absValue;
