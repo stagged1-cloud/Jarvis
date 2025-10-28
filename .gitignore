@@ -89,15 +89,17 @@ artifacts/
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
-# AI Models (large files)
-models/*.bin
-models/*.onnx
-models/*.pt
-models/*.pth
+# AI Models (large files) - NEVER commit these to git
+models/**/*.bin
+models/**/*.onnx
+models/**/*.pt
+models/**/*.pth
 models/*.ppn
 
-# Keep model directory structure
+# Keep model directory structure and README
 !models/.gitkeep
+!models/README.md
+!models/Hey-Jarvis_en_windows_v3_0_0.ppn
 
 # Local configuration overrides
 appsettings.local.json
