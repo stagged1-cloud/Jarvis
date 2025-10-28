@@ -1,12 +1,14 @@
 using Jarvis.Core.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Speech.Synthesis;
+using System.Runtime.Versioning;
 
 namespace Jarvis.Audio.TTS;
 
 /// <summary>
 /// Text-to-Speech service using Windows SAPI 5
 /// </summary>
+[SupportedOSPlatform("windows")]
 public class WindowsTTSService : ITTSService, IDisposable
 {
     private readonly SpeechSynthesizer _synthesizer;

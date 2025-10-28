@@ -53,7 +53,7 @@ public class ActionExecutionService : IActionExecutionService
 
     private async Task<ExecutionResult> OpenApplicationAsync(LLMResponse command)
     {
-        var appName = command.Target.ToLowerInvariant();
+        var appName = command.Target?.ToLowerInvariant() ?? string.Empty;
         
         // Map common app names to executables
         var appExecutable = appName switch
@@ -120,7 +120,7 @@ public class ActionExecutionService : IActionExecutionService
     {
         try
         {
-            var query = command.Target;
+            var query = command.Target ?? string.Empty;
             var searchUrl = $"https://www.google.com/search?q={Uri.EscapeDataString(query)}";
 
             var startInfo = new ProcessStartInfo
